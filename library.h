@@ -1,12 +1,18 @@
+#include <cstdlib>
 #include <cstdio>
+#include <iostream>
+#include <fstream>
+#include <vector>
+
 
 /**
  * An attribute schema. You should probably modify
  * this to add your own fields.
  */
 typedef struct {
-  char *name;
+  std::string name;
   int length;
+  std::string type;
 } Attribute;
 
 /**
@@ -16,9 +22,9 @@ typedef struct {
  * `attrs` array).
  */
 typedef struct {
-  Attribute* attrs[];
+  std::vector<Attribute> attrs;
   int nattrs;
-  int sort_attrs[];
+  std::vector<std::string> sort_attrs;
   int n_sort_attrs;
 } Schema;
 
@@ -28,7 +34,7 @@ typedef struct {
  */
 typedef struct {
   Schema* schema;
-  char* data;
+  std::string data;
 } Record;
 
 /**

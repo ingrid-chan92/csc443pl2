@@ -69,4 +69,4 @@ if __name__ == '__main__':
   nrecords = int(sys.argv[3])
 
   generate_data(schema, output, nrecords)
-  
+
