@@ -3,7 +3,11 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <algorithm>
+#include <string>
+#include <sstream>
 
+using namespace std;
 
 /**
  * An attribute schema. You should probably modify
@@ -24,7 +28,7 @@ typedef struct {
 typedef struct {
   std::vector<Attribute> attrs;
   int nattrs;
-  std::vector<std::string> sort_attrs;
+  std::vector<int> sort_attrs;
   int n_sort_attrs;
 } Schema;
 
@@ -42,6 +46,11 @@ typedef struct {
  * the `out_fp`.
  */
 void mk_runs(FILE *in_fp, FILE *out_fp, long run_length, Schema *schema);
+
+/**
+ * Based on schema, get expected record data length
+ */
+int get_expected_data_size(Schema *schema);
 
 /**
  * The iterator helps you scan through a run.
