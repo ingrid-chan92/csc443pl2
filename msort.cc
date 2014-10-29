@@ -21,17 +21,17 @@ int main(int argc, const char* argv[]) {
 	}
 
 	// Initialize args
-  string schema_file(argv[1]);	
+  	string schema_file(argv[1]);	
 	FILE *in_fp = fopen (argv[2] , "r");
 	FILE *out_fp = fopen (argv[3] , "w+");
-  if (in_fp == NULL || out_fp == NULL) {
+  	if (in_fp == NULL || out_fp == NULL) {
 		perror ("Error opening file");
 	}		
 	int mem_capacity = atoi(argv[4]);
 	int k = atoi(argv[5]);
 	string sortingAttr(argv[6]);
 
-  // Parse the schema JSON file
+  	// Parse the schema JSON file
 	// Support for std::string argument is added in C++11 so you don't have to use .c_str() if you are on that.
   Json::Value schema_val;
   Json::Reader json_reader;  
@@ -47,19 +47,19 @@ int main(int argc, const char* argv[]) {
 	int comma_len = 0;
 	schema.nattrs = 0;
 
-  for (u_int32_t i = 0; i < schema_val.size(); ++i) {
+  	for (u_int32_t i = 0; i < schema_val.size(); ++i) {
 	// Populate attributes list
-    attribute.name.assign(schema_val[i].get("name", "UTF-8" ).asString());
-    attribute.length = schema_val[i].get("length", "UTF-8").asInt();
-    attribute.type.assign(schema_val[i].get("type", "UTF-8").asString());
-    schema.attrs.push_back(attribute);
-    schema.nattrs++;    
-    schema_value_len += attribute.length;
-    comma_len++;
+    		attribute.name.assign(schema_val[i].get("name", "UTF-8" ).asString());
+	    	attribute.length = schema_val[i].get("length", "UTF-8").asInt();
+	    	attribute.type.assign(schema_val[i].get("type", "UTF-8").asString());
+	    	schema.attrs.push_back(attribute);
+	    	schema.nattrs++;    
+	    	schema_value_len += attribute.length;
+		comma_len++;
 
-	// Print out schema
-	cout << "{schema_name : " << schema.attrs[i].name << ", schema_len : " << schema.attrs[i].length  << ", schema_type : " << schema.attrs[i].type << "}" << endl;
-  }
+		// Print out schema
+		//cout << "{schema_name : " << schema.attrs[i].name << ", schema_len : " << schema.attrs[i].length  << ", schema_type : " << schema.attrs[i].type << "}" << endl;
+  	}
 	convert_string_into_sort_attr(&schema, sortingAttr);
 
 	// Initialize reusable stats	
@@ -67,7 +67,13 @@ int main(int argc, const char* argv[]) {
 	int runLength = mem_capacity / recordLen;				// Records per run
 	int runSize = runLength * (recordLen - 1);		
 	int numOfRuns = mem_capacity / runSize + 1;	// Number of runs
-	int itMemCap = mem_capacity / (k-1);
+	int itMemCap = mem_capacity / (k+1);
+	
+	// If memory alloted to each iterator is too small to fit a record. Sort not possible
+	if (itMemCap < recordLen) {
+		printf("Not enough memory allocated to do msort. Consider increasing mem_capcity or decreasing k\n");
+		return 1;
+	}
 
 	// Initial sort
 	mk_runs(in_fp, out_fp, runLength, &schema);
@@ -85,12 +91,14 @@ int main(int argc, const char* argv[]) {
 		Record *record = its[0]->next();
 		cout << "record_data 1: " << record->data << endl;
 	}
-
 	while (its[1]->has_next()) {
 		Record *record = its[1]->next();
 		cout << "record_data 2: " << record->data << endl;
 	}
-
+	while (its[2]->has_next()) {
+		Record *record = its[2]->next();
+		cout << "record_data 3: " << record->data << endl;
+	}
 
 
 	fclose(in_fp);
