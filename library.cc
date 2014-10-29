@@ -1,7 +1,76 @@
+#include <stdio.h>
+#include <string.h>
 #include "library.h"
 
 bool compare_records(const Record &a, const Record &b);
 std::string get_attr_from_data(int index, std::string data);
+bool compare_attribute(string aAttr, string bAttr, Attribute attr);
+
+
+RunIterator::RunIterator(FILE *fp, long start_pos, long run_length, long buf_size, Schema *schema) {
+	// Allocate structures
+	inFile = fp;
+	sch = schema;
+	buff = (char *) malloc(buf_size);		
+
+	// Initialize buffer tracking data
+	maxBuffSize = buf_size;
+	buffPtr = 0;
+
+	// Total records read
+	recordsRead = 0;
+	runLength = run_length;
+	filePos = start_pos;
+	recordSize = get_expected_data_size(schema);
+
+	// Read in first chunk of data
+	fseek(fp, filePos, SEEK_SET);
+	buffSize = fread(buff, buffSize, 1, inFile);
+	filePos += buffSize;
+
+}
+
+RunIterator::~RunIterator() {
+	free(buff);
+}
+
+Record* RunIterator::next() {
+	
+	if (buffPtr >= buffSize) {
+		// Finished reading from buffer. Process next chunk of data		
+		fseek(inFile, filePos, SEEK_SET);
+		buffSize = fread(buff, buffSize, 1, inFile);
+		filePos += buffSize;
+		buffPtr = 0;
+	} 
+
+	// Throw exception if nothing left to read
+	if (buffSize <= 0 || recordsRead < runLength) {
+		printf("RunIterator: Nothing left to read.");
+		throw;
+	}
+
+	/* At the point. Buffer has data to read*/
+
+	// Read next record from buffer
+	Record *record = (Record *) malloc(recordSize);
+	record->schema = sch;
+	char dataBuf[recordSize];
+	memcpy(dataBuf, buff + buffPtr, recordSize);
+	record->data.assign(dataBuf);
+
+	// Shift pointer to next potential record
+	recordsRead += 1;
+	buffPtr += recordSize; 
+
+	return record;
+	
+}
+
+bool RunIterator::has_next() {
+	return buffSize != 0 && recordsRead < runLength;
+}
+
 
 
 void mk_runs(FILE *in_fp, FILE *out_fp, long run_length, Schema *schema)
@@ -9,6 +78,7 @@ void mk_runs(FILE *in_fp, FILE *out_fp, long run_length, Schema *schema)
 	u_int32_t recordLength = get_expected_data_size(schema);	
   	vector<Record> records;
 	char buffer[recordLength];
+	size_t u_run_length = run_length;
 
 	// Read and sort records in in_fp
 	while (fgets(buffer, recordLength, in_fp) != NULL) {
@@ -18,7 +88,7 @@ void mk_runs(FILE *in_fp, FILE *out_fp, long run_length, Schema *schema)
    		records.push_back(record);
 
 		// Sort and write back runs
-		if (records.size() == run_length) {
+		if (records.size() == u_run_length) {
 			sort(records.begin(), records.end(), compare_records);
 			for (u_int32_t j = 0; j < records.size(); j++) {
 				fprintf(out_fp, "%s", records[j].data.c_str());		
@@ -67,14 +137,28 @@ bool compare_records(const Record &a, const Record &b) {
 		string aAttr = get_attr_from_data(sortAttrs[i], a.data);
 		string bAttr = get_attr_from_data(sortAttrs[i], b.data);	
 		if (aAttr.compare(bAttr) != 0) {
-			return aAttr.compare(bAttr) < 0;
+			return compare_attribute(aAttr, bAttr, schema->attrs[sortAttrs[i]]);
 		}
-
 		// At this point, a and b are equal. Check next sort attribute
 	}
 
 	// The records are exactly the same. Default to true.
 	return true;
+}
+
+/**
+ *	Attribute comparison function. Compare based on attribute type
+ **/
+bool compare_attribute(string aAttr, string bAttr, Attribute attr) {
+	string attrType = attr.type;
+	if (attrType.compare("integer") == 0 || attrType.compare("long") == 0) {
+		return atol(aAttr.c_str()) < atol(bAttr.c_str());
+	} else if (attrType.compare("float") == 0 || attrType.compare("double") == 0) {
+		return atof(aAttr.c_str()) < atof(bAttr.c_str());
+	} else {
+		// Default string comparison
+		return aAttr.compare(bAttr) < 0;
+	}
 }
 
 /** 
@@ -89,7 +173,6 @@ string get_attr_from_data(int index, string data) {
 	int i = 0;
 	while (getline(iss, token, ',')) {
 		if (i == index) {
-            cout << token << endl;
 			return token;
 		} 
 		i++;

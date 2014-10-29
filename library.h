@@ -63,6 +63,22 @@ string get_attr_from_data(int index, string data);
  * you can add additional members as your wish
  */
 class RunIterator {
+
+	FILE *inFile;
+	char *buff;
+	Schema *sch;	
+
+	// Buffer tracking data
+	long maxBuffSize;
+	long buffPtr;
+	long buffSize;	
+	long recordSize;
+
+	// Total records read
+	long recordsRead;
+	long runLength;
+	long filePos;
+
   /**
    * Creates an interator using the `buf_size` to
    * scan through a run that starts at `start_pos`

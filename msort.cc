@@ -15,9 +15,9 @@ int main(int argc, const char* argv[]) {
   Schema schema;  
 
   if (argc != 7) {
-    cout << "Usage: <schema_file> <input_file> <output_file> <mem_capacity> <k> <sorting_attributes>" << endl;
-		cout << "<sorting_attributes> should be comma-separated list (No spaces). E.g. attrA,attrB,attrC" << endl;
-    exit(1);
+	cout << "Usage: <schema_file> <input_file> <output_file> <mem_capacity> <k> <sorting_attributes>" << endl;
+	cout << "<sorting_attributes> should be comma-separated list (No spaces). E.g. attrA,attrB,attrC" << endl;
+	exit(1);
   }
 
 	// Initialize args
@@ -47,7 +47,7 @@ int main(int argc, const char* argv[]) {
   int comma_len = 0;
 	schema.nattrs = 0;
   for (u_int32_t i = 0; i < schema_val.size(); ++i) {
-		// Populate attributes list
+	// Populate attributes list
     attribute.name.assign(schema_val[i].get("name", "UTF-8" ).asString());
     attribute.length = schema_val[i].get("length", "UTF-8").asInt();
     attribute.type.assign(schema_val[i].get("type", "UTF-8").asString());
@@ -56,8 +56,8 @@ int main(int argc, const char* argv[]) {
     schema_value_len += attribute.length;
     comma_len++;
 
-		// Print out schema
-		cout << "{schema_name : " << schema.attrs[i].name << ", schema_len : " << schema.attrs[i].length  << ", schema_type : " << schema.attrs[i].type << "}" << endl;
+	// Print out schema
+	cout << "{schema_name : " << schema.attrs[i].name << ", schema_len : " << schema.attrs[i].length  << ", schema_type : " << schema.attrs[i].type << "}" << endl;
   }
 	convert_string_into_sort_attr(&schema, sortingAttr);
 
