@@ -89,6 +89,7 @@ string get_attr_from_data(int index, string data) {
 	int i = 0;
 	while (getline(iss, token, ',')) {
 		if (i == index) {
+            cout << token << endl;
 			return token;
 		} 
 		i++;

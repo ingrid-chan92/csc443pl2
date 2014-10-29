@@ -52,6 +52,12 @@ void mk_runs(FILE *in_fp, FILE *out_fp, long run_length, Schema *schema);
  */
 int get_expected_data_size(Schema *schema);
 
+/** 
+ * Given an index and a string of data, find the corresponding attribute
+ * Attributes are separated by commas
+ */
+string get_attr_from_data(int index, string data);
+
 /**
  * The iterator helps you scan through a run.
  * you can add additional members as your wish
