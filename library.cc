@@ -13,65 +13,89 @@ RunIterator::RunIterator(FILE *fp, long start_pos, long run_length, long buf_siz
 	sch = schema;
 	buff = (char *) malloc(buf_size);		
 
-	// Initialize buffer tracking data
-	maxBuffSize = buf_size;
-	buffPtr = 0;
-
-	// Total records read
-	recordsRead = 0;
+	// constants
+	recordSize = get_expected_data_size(schema) - 1;	// Subtract last comma
 	runLength = run_length;
-	filePos = start_pos;
-	recordSize = get_expected_data_size(schema);
+	maxBuffSize = buf_size / recordSize; // Number of records per buffer
+	
+	// Non-Constants	
+	totalRunLeft = run_length;
+	filePos = start_pos;	
+	hasNext = true;
 
-	// Read in first chunk of data
-	fseek(fp, filePos, SEEK_SET);
-	buffSize = fread(buff, buffSize, 1, inFile);
-	filePos += buffSize;
+	readRunIntoBuffer();
 
+	// Read in current record
+	currRecord = new Record;
+	currRecord->schema = sch;
+	char dataBuf[recordSize];
+	memcpy(dataBuf, buff + buffPtr, recordSize);
+	currRecord->data = string(dataBuf);
+
+	// Shift pointer to next potential record
+	buffPtr += recordSize; 
 }
 
 RunIterator::~RunIterator() {
 	free(buff);
 }
 
-Record* RunIterator::next() {
-	
+Record* RunIterator::next() {	
+	if (!hasNext) {
+		printf("RunIterator: No more records left\n");
+		throw;
+	}
+
+	/* At this point. One record exists*/
+	Record *prevRecord = currRecord;
+
 	if (buffPtr >= buffSize) {
 		// Finished reading from buffer. Process next chunk of data		
-		fseek(inFile, filePos, SEEK_SET);
-		buffSize = fread(buff, buffSize, 1, inFile);
-		filePos += buffSize;
-		buffPtr = 0;
+		readRunIntoBuffer();	
 	} 
 
-	// Throw exception if nothing left to read
-	if (buffSize <= 0 || recordsRead < runLength) {
-		printf("RunIterator: Nothing left to read.");
-		throw;
+	// Nothing left to read
+	if (totalRunLeft <= 0 && buffSize <= 0) {
+		hasNext = false;
+		return prevRecord;
 	}
 
 	/* At the point. Buffer has data to read*/
 
 	// Read next record from buffer
-	Record *record = (Record *) malloc(recordSize);
-	record->schema = sch;
+	currRecord = new Record;
+	currRecord->schema = sch;
 	char dataBuf[recordSize];
 	memcpy(dataBuf, buff + buffPtr, recordSize);
-	record->data.assign(dataBuf);
+	currRecord->data = string(dataBuf);
 
 	// Shift pointer to next potential record
-	recordsRead += 1;
 	buffPtr += recordSize; 
 
-	return record;
+	return prevRecord;
 	
 }
 
 bool RunIterator::has_next() {
-	return buffSize != 0 && recordsRead < runLength;
+	return hasNext;
 }
 
+void RunIterator::readRunIntoBuffer() {
+	long expectedRecordAmount = min(maxBuffSize, totalRunLeft);
 
+	fseek(inFile, filePos, SEEK_SET);
+	long numRead = fread(buff, recordSize, expectedRecordAmount, inFile);
+
+	buffSize = numRead * recordSize;
+	filePos += buffSize;
+	totalRunLeft -= numRead;
+	buffPtr = 0;	
+
+	// Case for an incomplete/end-of-file run
+	if (feof(inFile)) {
+		totalRunLeft = 0;
+	}	
+}
 
 void mk_runs(FILE *in_fp, FILE *out_fp, long run_length, Schema *schema)
 {

@@ -11,14 +11,14 @@ void convert_string_into_sort_attr(Schema *schema, string sortingAttr);
 
 int main(int argc, const char* argv[]) {
 
-  Attribute attribute;
-  Schema schema;  
+	Attribute attribute;
+	Schema schema;  
 
-  if (argc != 7) {
-	cout << "Usage: <schema_file> <input_file> <output_file> <mem_capacity> <k> <sorting_attributes>" << endl;
-	cout << "<sorting_attributes> should be comma-separated list (No spaces). E.g. attrA,attrB,attrC" << endl;
-	exit(1);
-  }
+	if (argc != 7) {
+		cout << "Usage: <schema_file> <input_file> <output_file> <mem_capacity> <k> <sorting_attributes>" << endl;
+		cout << "<sorting_attributes> should be comma-separated list (No spaces). E.g. attrA,attrB,attrC" << endl;
+		exit(1);
+	}
 
 	// Initialize args
   string schema_file(argv[1]);	
@@ -42,10 +42,11 @@ int main(int argc, const char* argv[]) {
     exit(1);
   }
 
-  // Setup schema struct
-  int schema_value_len = 0;
-  int comma_len = 0;
+	// Setup schema struct
+	int schema_value_len = 0;
+	int comma_len = 0;
 	schema.nattrs = 0;
+
   for (u_int32_t i = 0; i < schema_val.size(); ++i) {
 	// Populate attributes list
     attribute.name.assign(schema_val[i].get("name", "UTF-8" ).asString());
@@ -61,16 +62,36 @@ int main(int argc, const char* argv[]) {
   }
 	convert_string_into_sort_attr(&schema, sortingAttr);
 
-	// Do initial sort	
+	// Initialize reusable stats	
 	int recordLen = schema_value_len+comma_len+1;
-	mk_runs(in_fp, out_fp, mem_capacity / recordLen, &schema);
+	int runLength = mem_capacity / recordLen;				// Records per run
+	int runSize = runLength * (recordLen - 1);		
+	int numOfRuns = mem_capacity / runSize + 1;	// Number of runs
+	int itMemCap = mem_capacity / (k-1);
 
-	// DEBUG:
-	print_all_records(out_fp, recordLen, schema);
+	// Initial sort
+	mk_runs(in_fp, out_fp, runLength, &schema);
+
+	// USE THIS SOMEWHERE
+	// Create array of k-iterators
+	RunIterator *its[k];
+	for (int i = 0; i < k; i++) {
+		its[i] = new RunIterator(out_fp, 0 + (i * runSize), runLength, itMemCap, &schema);	// REPLACE 0 with the offset for startPos
+	}
 
 
- 	// TODO: INSERT STUFF TO DO HERE
-  
+	// DEBUG: Test run iteartor
+	while (its[0]->has_next()) {
+		Record *record = its[0]->next();
+		cout << "record_data 1: " << record->data << endl;
+	}
+
+	while (its[1]->has_next()) {
+		Record *record = its[1]->next();
+		cout << "record_data 2: " << record->data << endl;
+	}
+
+
 
 	fclose(in_fp);
 	fclose(out_fp);

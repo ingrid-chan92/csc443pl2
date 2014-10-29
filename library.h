@@ -68,22 +68,28 @@ class RunIterator {
 	char *buff;
 	Schema *sch;	
 
-	// Buffer tracking data
+	// Constants calculated at intialization
 	long maxBuffSize;
-	long buffPtr;
-	long buffSize;	
 	long recordSize;
+	long runLength;
+	
+	// Buffer tracking data	
+	long buffPtr;
+	long buffSize;		
 
 	// Total records read
-	long recordsRead;
-	long runLength;
+	long totalRunLeft;
 	long filePos;
+
+	Record *currRecord;
+	bool hasNext;
 
   /**
    * Creates an interator using the `buf_size` to
    * scan through a run that starts at `start_pos`
    * with length `run_length`.
    */
+public:
   RunIterator(FILE *fp, long start_pos, long run_length, long buf_size,
               Schema *schema);
 
@@ -102,6 +108,10 @@ class RunIterator {
    * of the run
    */
   bool has_next();
+
+private:
+	void readRunIntoBuffer();
+
 };
 
 /**
