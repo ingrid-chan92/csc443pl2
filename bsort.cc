@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "leveldb/db.h"
+#include "leveldb/comparator.h"
 #include "json/json.h"
 #include "library.h"
 
@@ -10,6 +11,86 @@ using namespace std;
 void convert_string_into_sort_attr(Schema *schema, string sortingAttr);
 void dump_tree(leveldb::DB *db, FILE *out_fp);
 bool insert_and_collision_check(leveldb::DB *db, leveldb::Slice key, leveldb::Slice value, long uniquer);
+
+
+class CsvComparator : public leveldb::Comparator {
+    public:
+    int Compare(const leveldb::Slice& a, const leveldb::Slice& b) const {
+        string type_array;
+
+	    string a_vals(a.ToString());
+	    istringstream a_iss(a_vals);
+        string a_token;
+        string a_type;
+
+        string b_vals(b.ToString());
+	    istringstream b_iss(b_vals);	    
+        string b_token;
+        string b_type;
+
+        string type;
+        bool a_success = getline(a_iss, a_token, ',');
+        bool b_success = getline(b_iss, b_token, ',');
+        bool exited_from_if = false;
+
+        while (a_success && b_success) {
+            a_success = getline(a_iss, a_type, ',');
+            b_success = getline(b_iss, b_type, ',');
+
+            if(!a_success || !b_success) {
+                /*in the case of two salts, it will fail here*/
+                /*one salt and no salts will fail at while loop condition*/
+                exited_from_if = true;
+                break;
+            }
+               
+            type = a_type;
+
+        	if (type.compare("integer") == 0 || type.compare("long") == 0) {
+	            if( atol(a_token.c_str()) < atol(b_token.c_str())){
+                    return -1;
+                }else if ( atol(a_token.c_str()) > atol(b_token.c_str())) {
+                    return 1;
+                }
+            } 
+            else if (type.compare("float") == 0 || type.compare("double") == 0) {
+	            if (atof(a_token.c_str()) < atof(b_token.c_str())) {
+                    return -1;
+                } else if ( atof(a_token.c_str()) > atof(b_token.c_str())) {
+                    return 1;
+                }
+            }           
+            else {
+	            // Default string comparison
+	            if (a_token.compare(b_token) != 0)
+                    return a_token.compare(b_token);
+            }
+
+            a_success = getline(a_iss, a_token, ',');
+            b_success = getline(b_iss, b_token, ',');
+	    }
+
+        //check the salt if all else fails
+        if(exited_from_if) {
+            /*exited from if means both entries have salt*/
+            if (atol(a_token.c_str()) < atol(b_token.c_str())) {
+                return -1;
+            } else if ( atol(a_token.c_str()) > atol(b_token.c_str())) {
+                return 1;
+            }
+        } else if ((a_success && !b_success)) {
+            return 1;
+        } else if ((!a_success && b_success)) {
+            return -1;
+        }
+        return 0;
+    }
+
+    const char* Name() const { return "CsvComparator"; }
+    void FindShortestSeparator(std::string*, const leveldb::Slice&) const { }
+    void FindShortSuccessor(std::string*) const { }
+};
+
 
 int main(int argc, const char* argv[]) {
 
@@ -21,26 +102,17 @@ int main(int argc, const char* argv[]) {
 
 	// Do work here
     Attribute attribute;
-    Schema schema;  	
+    Schema schema; 
+
+    CsvComparator cmp; 	
     leveldb::DB *db;
     leveldb::Options options;
     options.create_if_missing = true;
-    //need to specify options.comparator?
+    options.comparator = &cmp;
     leveldb::Status status = leveldb::DB::Open(options, "./leveldb_dir", &db);
-
-    /*
-    In the C++ namespace leveldb, we find that DB class has three important methods:
-    DB::Put(WriteOptions& options, const Slice& key, const Slice& value)
-    DB::Get(ReadOptions& options, const Slice& key, std::string *value)
-    DB::Delete(WriteOptions& options, const Slice& key)
-
-    leveldb::Slice key = "CSC443/WINTER";
-    leveldb::Slice value = std::string("This is a course about database implementation.")
-    */
     leveldb::Slice key;
     leveldb::Slice value;
 
-    /*checkpoint 1*/
     // Initialize args
     string schema_file(argv[1]);	
     FILE *in_fp = fopen (argv[2] , "r");
@@ -78,11 +150,6 @@ int main(int argc, const char* argv[]) {
         comma_len++;
     }
     convert_string_into_sort_attr(&schema, sortingAttr);
-    
-    /*checkpoint 2
-    for (u_int32_t j = 0; j < schema.sort_attrs.size(); j++) {
-	    	cout << schema.sort_attrs[j] << "\n";		
-	}*/
 
     // Read and sort records in in_fp
 	u_int32_t recordLength = get_expected_data_size(&schema);	
@@ -95,11 +162,6 @@ int main(int argc, const char* argv[]) {
    		records.push_back(record);
 	}
 
-    /*checkpoint 3
-	for (u_int32_t j = 0; j < records.size(); j++) {
-	//	cout << records[j].data.c_str();		
-    }*/	
-
     //inserting records into b+ tree
     string key_str, value_str;
     long uniquer = 0;
@@ -107,10 +169,17 @@ int main(int argc, const char* argv[]) {
         key_str = "";
 	    for (u_int32_t sort_i = 0; sort_i < schema.sort_attrs.size(); sort_i++) {
             key_str.append(get_attr_from_data(schema.sort_attrs[sort_i], records[j].data));
+            key_str.append(",");
+            key_str.append(schema.attrs[schema.sort_attrs[sort_i]].type);
+            if(sort_i < schema.sort_attrs.size() - 1) {
+                key_str.append(",");
+            }
         }
+
         key = key_str;     
         value_str.assign(records[j].data);
-        value = value_str;      
+        value = value_str; 
+  
         if(insert_and_collision_check(db, key, value, uniquer)){
             uniquer++;
         }	
@@ -142,7 +211,6 @@ void convert_string_into_sort_attr(Schema *schema, string sortingAttr) {
 	}
 }
 
-/*checkpoint*/
 /*inserts key-value into b+ tree; add salt in case of collision*/
 bool insert_and_collision_check(leveldb::DB *db, leveldb::Slice key, leveldb::Slice value, long uniquer) {
     string val;
@@ -152,7 +220,7 @@ bool insert_and_collision_check(leveldb::DB *db, leveldb::Slice key, leveldb::Sl
     
     leveldb::Status s = db->Get(leveldb::ReadOptions(), key, &val);
     if (s.ok()) {
-        longstream << uniquer;
+        longstream << ","<<uniquer;
         key_str = key.ToString();
         key_str.append(longstream.str());
         key = key_str;
@@ -170,8 +238,8 @@ void dump_tree(leveldb::DB *db, FILE *out_fp){
         leveldb::Slice value = it->value();
         std::string key_str = key.ToString();
         std::string val_str = value.ToString();
-        cout << key_str << ": " << val_str << endl;
-        //fprintf(out_fp, "%s", val_str.c_str);
+        //write to file
+        fprintf(out_fp, "%s", val_str.c_str());
     }
     assert(it->status().ok()); // Check for any errors found during the scan
     delete it;
