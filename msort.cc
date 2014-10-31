@@ -22,9 +22,8 @@ int main(int argc, const char* argv[]) {
 
 	// Initialize args
   	string schema_file(argv[1]);	
-	FILE *in_fp = fopen (argv[2] , "r");
-	FILE *out_fp = fopen (argv[3] , "w+");
-  	if (in_fp == NULL || out_fp == NULL) {
+	FILE *in_fp = fopen (argv[2] , "r");	
+  	if (in_fp == NULL) {
 		perror ("Error opening file");
 	}		
 	int mem_capacity = atoi(argv[4]);
@@ -33,14 +32,14 @@ int main(int argc, const char* argv[]) {
 
   	// Parse the schema JSON file
 	// Support for std::string argument is added in C++11 so you don't have to use .c_str() if you are on that.
-  Json::Value schema_val;
-  Json::Reader json_reader;  
-  ifstream schema_file_istream(schema_file.c_str(), ifstream::binary);
-  bool successful = json_reader.parse(schema_file_istream, schema_val, false);
-  if (!successful) {
-    cout << "ERROR: " << json_reader.getFormatedErrorMessages() << endl;
-    exit(1);
-  }
+	Json::Value schema_val;
+	Json::Reader json_reader;  
+	ifstream schema_file_istream(schema_file.c_str(), ifstream::binary);
+	bool successful = json_reader.parse(schema_file_istream, schema_val, false);
+	if (!successful) {
+		cout << "ERROR: " << json_reader.getFormatedErrorMessages() << endl;
+		exit(1);
+	}
 
 	// Setup schema struct
 	int schema_value_len = 0;
@@ -74,35 +73,39 @@ int main(int argc, const char* argv[]) {
 		printf("Not enough memory allocated to do msort. Consider increasing mem_capcity or decreasing k\n");
 		return 1;
 	}
+	
+	/* At this point, all parameters for sorting are set */
+	// Initialize output files (two to alternate between write-read when merging)
+	FILE *readFrom = fopen ("tmp1", "w+");
+	FILE *writeTo = fopen ("tmp2" , "w+");
 
-	// Initial sort
-	mk_runs(in_fp, out_fp, runLength, &schema);
+	// PASS 0: Initial sort into numOfRuns-runs
+	mk_runs(in_fp, readFrom, runLength, &schema);
 
-	// USE THIS SOMEWHERE
-	// Create array of k-iterators
-	RunIterator *its[k];
-	for (int i = 0; i < k; i++) {
-		its[i] = new RunIterator(out_fp, 0 + (i * runSize), runLength, itMemCap, &schema);	// REPLACE 0 with the offset for startPos
-	}
+	// ONE ITERATION OF MERGING
+	char *buf = (char *) malloc(itMemCap);
+	//while (numOfRuns > 1) {
+		// Create array of k-iterators	
+		RunIterator *its[k];
+		for (int i = 0; i < k; i++) {
+			its[i] = new RunIterator(readFrom, 0 + (i * runSize), runLength, itMemCap, &schema);	// REPLACE 0 with the offset for startPos
+		}	
 
+		merge_runs(its, k, writeTo, 0, buf, itMemCap);
 
-	// DEBUG: Test run iteartor
-	while (its[0]->has_next()) {
-		Record *record = its[0]->next();
-		cout << "record_data 1: " << record->data << endl;
-	}
-	while (its[1]->has_next()) {
-		Record *record = its[1]->next();
-		cout << "record_data 2: " << record->data << endl;
-	}
-	while (its[2]->has_next()) {
-		Record *record = its[2]->next();
-		cout << "record_data 3: " << record->data << endl;
-	}
+		// Alternate read-write files (Sort alternates between two files
+		FILE *tmp = readFrom;
+		readFrom = writeTo;
+		writeTo = tmp;
+	//}
 
+	// Determine which file is output. Rename it
+	// FILE *out_fp = fopen (argv[3] , "w+");
 
+	free(buf);
 	fclose(in_fp);
-	fclose(out_fp);
+	fclose(readFrom);
+	fclose(writeTo);
 
   return 0;
 }

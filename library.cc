@@ -5,6 +5,7 @@
 bool compare_records(const Record &a, const Record &b);
 std::string get_attr_from_data(int index, std::string data);
 bool compare_attribute(string aAttr, string bAttr, Attribute attr);
+Record *getMinimumRecord(Record *minRecs[], RunIterator* its[], int num_runs);
 
 
 RunIterator::RunIterator(FILE *fp, long start_pos, long run_length, long buf_size, Schema *schema) {
@@ -131,10 +132,74 @@ void mk_runs(FILE *in_fp, FILE *out_fp, long run_length, Schema *schema)
 	}
 }
 
-void merge_runs(RunIterator* iterators[], int num_runs, FILE *out_fp,
-                long start_pos, char *buf, long buf_size)
-{
-  // Your implementation
+void merge_runs(RunIterator* iterators[], int num_runs, FILE *out_fp, long start_pos, char *buf, long buf_size) {
+	Record *next;		
+	long bufPtr = 0;	
+
+	// Empty buffer and set out file to proper start position
+	fseek(out_fp, start_pos, SEEK_SET);
+	memset (buf, 0, buf_size);
+
+	// Populate minRecs with minimum records per iterator
+	Record *minRecs[num_runs];
+	for (int i = 0; i < num_runs; i++) {
+		minRecs[i] = NULL;
+		if (iterators[i]->has_next()) {
+			Record *next = iterators[i]->next();
+
+			// Only record non-blank data			
+			if (!(next->data).empty()) {
+				minRecs[i] = next;
+			}			
+		} 
+	}
+
+	// Merge runs from each iterator into buf
+	while ((next = getMinimumRecord(minRecs, iterators, num_runs)) != NULL) {
+		int expectedDataSize = get_expected_data_size(next->schema) - 1;
+		memcpy (buf+bufPtr, next->data.c_str(), expectedDataSize);
+		bufPtr += expectedDataSize;		
+
+		if ((bufPtr + expectedDataSize) >= buf_size) {
+			// buffer is full. Write to file
+			fprintf(out_fp, "%s", buf);	
+			memset (buf, 0, buf_size);			
+			bufPtr = 0;
+		}
+	}  
+
+	if (bufPtr > 0) {
+		// Write remaining data in file
+		fprintf(out_fp, "%s", buf);	
+	}
+}
+
+Record *getMinimumRecord(Record *minRecs[], RunIterator* its[], int num_runs) {
+	Record *min = NULL;
+	int minIndex = -1;
+
+	// Find smallest record from the top of each RunIterator
+	for (int i = 0; i < num_runs; i++) {
+		Record *next = minRecs[i];
+		if (next != NULL && (min == NULL || compare_records(*next, *min))) {
+			min = next;
+			minIndex = i;
+		}		
+	}
+
+	if (min != NULL) {
+		// Add next record to minRecs 
+		if (its[minIndex]->has_next()) {
+			minRecs[minIndex] = its[minIndex]->next();
+		} else {
+			minRecs[minIndex] = NULL;
+		}
+		return min;
+
+	} else {
+		// No more records left
+		return NULL;
+	}
 }
 
 int get_expected_data_size(Schema *schema) {
