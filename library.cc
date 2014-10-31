@@ -160,9 +160,9 @@ void merge_runs(RunIterator* iterators[], int num_runs, FILE *out_fp, long start
 		memcpy (buf+bufPtr, next->data.c_str(), expectedDataSize);
 		bufPtr += expectedDataSize;		
 
-		if ((bufPtr + expectedDataSize) >= buf_size) {
+		if ((buf_size - bufPtr) < expectedDataSize) {
 			// buffer is full. Write to file
-			fprintf(out_fp, "%s", buf);	
+			fprintf(out_fp, "%s", buf);				
 			memset (buf, 0, buf_size);			
 			bufPtr = 0;
 		}
@@ -170,7 +170,7 @@ void merge_runs(RunIterator* iterators[], int num_runs, FILE *out_fp, long start
 
 	if (bufPtr > 0) {
 		// Write remaining data in file
-		fprintf(out_fp, "%s", buf);	
+		fprintf(out_fp, "%s", buf);
 	}
 }
 

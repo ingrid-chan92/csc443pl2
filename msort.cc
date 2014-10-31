@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <math.h>
 #include "library.h"
 #include "json/json.h"
 
@@ -88,11 +89,11 @@ int main(int argc, const char* argv[]) {
 	// PASS 0: Initial sort into numOfRuns-runs
 	mk_runs(in_fp, readFrom, runLength, &schema);
 
-	// ONE ITERATION OF MERGING
-	int offset = 0;	
+	// PASS 1..N: Merge sort runs	
 	char *buf = (char *) malloc(itMemCap);
-	while (numOfRuns > 1) {
-		
+	while (numOfRuns > 1) {		
+		int offset = 0;
+
 		// Merge every k-runs
 		for (int j = 0; j < numOfRuns; j+= k) {
 			// Create array of k-iterators	
@@ -111,9 +112,12 @@ int main(int argc, const char* argv[]) {
 		readFrom = writeTo;
 		writeTo = tmp;
 		outFilename = (outFilename.compare("tmp1") == 0) ? "tmp2" : "tmp1"; 
-		
-		int newNumOfRuns = numOfRuns / k;
-		numOfRuns = (newNumOfRuns % k == 0) ? newNumOfRuns : newNumOfRuns + 1;		
+
+		// Update stats
+		runLength = runLength * k;
+		runSize = runSize * k;
+		numOfRuns = ceil(numOfRuns / k);
+
 	}
 
 	// Clean up
