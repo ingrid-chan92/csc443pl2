@@ -63,11 +63,16 @@ int main(int argc, const char* argv[]) {
 
 	// Initialize reusable stats	
 	int recordLen = schema_value_len+comma_len+1;
-	int runLength = mem_capacity / recordLen;				// Records per run
-	int runSize = runLength * (recordLen - 1);		
-	int numOfRuns = mem_capacity / runSize + 1;	// Number of runs
-	int itMemCap = mem_capacity / (k+1);
-	
+	int runLength = mem_capacity / recordLen;	// Records per run
+	int runSize = runLength * (recordLen - 1);	// Size of run			
+	int itMemCap = mem_capacity / (k+1);		// Max capacity per iterator + buffer
+
+	// Get number of runs by size of file
+	fseek(in_fp, 0, SEEK_END);
+	int filesize = ftell(in_fp);
+	int numOfRuns = (filesize % runSize == 0) ? filesize / runSize : (filesize / runSize) + 1;	// Number of runs
+	fseek(in_fp, 0, SEEK_SET);
+
 	// If memory alloted to each iterator is too small to fit a record. Sort not possible
 	if (itMemCap < recordLen) {
 		printf("Not enough memory allocated to do msort. Consider increasing mem_capcity or decreasing k\n");
@@ -78,36 +83,53 @@ int main(int argc, const char* argv[]) {
 	// Initialize output files (two to alternate between write-read when merging)
 	FILE *readFrom = fopen ("tmp1", "w+");
 	FILE *writeTo = fopen ("tmp2" , "w+");
+	string outFilename = "tmp1";		// File containing the result of the last merge
 
 	// PASS 0: Initial sort into numOfRuns-runs
 	mk_runs(in_fp, readFrom, runLength, &schema);
 
 	// ONE ITERATION OF MERGING
+	int offset = 0;	
 	char *buf = (char *) malloc(itMemCap);
-	//while (numOfRuns > 1) {
-		// Create array of k-iterators	
-		RunIterator *its[k];
-		for (int i = 0; i < k; i++) {
-			its[i] = new RunIterator(readFrom, 0 + (i * runSize), runLength, itMemCap, &schema);	// REPLACE 0 with the offset for startPos
-		}	
+	while (numOfRuns > 1) {
+		
+		// Merge every k-runs
+		for (int j = 0; j < numOfRuns; j+= k) {
+			// Create array of k-iterators	
+			RunIterator *its[k];
+			for (int i = 0; i < k; i++) {
+				its[i] = new RunIterator(readFrom, offset + (i * runSize), runLength, itMemCap, &schema);
+			}	
+			merge_runs(its, k, writeTo, offset, buf, itMemCap);
 
-		merge_runs(its, k, writeTo, 0, buf, itMemCap);
+			// Move onto next k-runs
+			offset += k * runSize;
+		}		
 
-		// Alternate read-write files (Sort alternates between two files
+		// Alternate read-write files (Sort alternates between two files)
 		FILE *tmp = readFrom;
 		readFrom = writeTo;
 		writeTo = tmp;
-	//}
+		outFilename = (outFilename.compare("tmp1") == 0) ? "tmp2" : "tmp1"; 
+		
+		int newNumOfRuns = numOfRuns / k;
+		numOfRuns = (newNumOfRuns % k == 0) ? newNumOfRuns : newNumOfRuns + 1;		
+	}
 
-	// Determine which file is output. Rename it
-	// FILE *out_fp = fopen (argv[3] , "w+");
-
+	// Clean up
 	free(buf);
 	fclose(in_fp);
 	fclose(readFrom);
 	fclose(writeTo);
 
-  return 0;
+	// Rename the final output file into given out_file name
+	rename (outFilename.c_str(), argv[3]);
+
+	// Clean up remaining tmp files
+	remove ("tmp1");
+	remove ("tmp2");	
+
+	return 0;
 }
 
 void convert_string_into_sort_attr(Schema *schema, string sortingAttr) {
