@@ -14,7 +14,6 @@ int getNumberOfInitRuns(FILE *in_fp, int maxRunSize);
 
 
 int main(int argc, const char* argv[]) {
-
 	
 	Schema schema;  
 
@@ -31,7 +30,6 @@ int main(int argc, const char* argv[]) {
 		perror ("Error opening file");
 	}		
 	int mem_capacity = atoi(argv[4]);
-	int initK = atoi(argv[5]);
 	string sortingAttr(argv[6]);
 
   	// Parse the schema JSON file
@@ -45,28 +43,27 @@ int main(int argc, const char* argv[]) {
 		exit(1);
 	}
 
-	// Setup schema struct
-	int schema_value_len = 0;
-	int comma_len = 0;
+	// Setup schema struct	
+	int recordLen = 1;				// start at 1 for newline character
 	schema.nattrs = 0;
-
   	for (u_int32_t i = 0; i < schema_val.size(); ++i) {	
-	    schema_value_len += addAttrToSchema(schema_val, &schema, i);
-		comma_len++;
+	    recordLen += addAttrToSchema(schema_val, &schema, i) + 1;	// extra +1 for comma
   	}
 	convert_string_into_sort_attr(&schema, sortingAttr);
 
 	// Initialize stats	
-	int recordLen = schema_value_len+comma_len+1;
 	int maxRecPerRun = mem_capacity / recordLen;			// Records per run
 	int maxRunSize = maxRecPerRun * (recordLen - 1);		// Size of run in bytes
-	int numOfRuns = getNumberOfInitRuns(in_fp, maxRunSize);
-	int k = min (initK, numOfRuns);							// Max number of merges per pass
+	int numOfRuns = getNumberOfInitRuns(in_fp, maxRunSize);	// Number of runs in file
+	int k = min(atoi(argv[5]), numOfRuns);					// Max number of merges per pass
 	int memCap = mem_capacity / (k+1);						// Max capacity per iterator + buffer
 
-	// If memory alloted to each iterator is too small to fit a record. Sort not possible
+	// Verify all parameters are valid
 	if (memCap < recordLen) {
-		cout << "Not enough memory allocated to do msort. Consider increasing mem_capcity or decreasing k\n" << endl;
+		cout << "ERROR: Not enough memory per Iterator to do msort. Increase <mem_capacity> or decrease <k>" << endl;
+		return 1;
+	} else if (atoi(argv[5]) == 1) {
+		cout << "ERROR: <k> cannot be 1" << endl;
 		return 1;
 	}
 	
@@ -75,7 +72,7 @@ int main(int argc, const char* argv[]) {
 	// Initialize output files (two to alternate between write-read when merging)
 	FILE *readFrom = fopen ("tmp1", "w+");
 	FILE *writeTo = fopen ("tmp2" , "w+");
-	string outFilename = "tmp1";		// File containing the result of the last merge
+	string lastResult = "tmp1";		// File containing the result of the last merge
 
 	// PASS 0: Initial sort into numOfRuns-runs
 	mk_runs(in_fp, readFrom, maxRecPerRun, &schema);
@@ -109,9 +106,9 @@ int main(int argc, const char* argv[]) {
 		FILE *tmp = readFrom;
 		readFrom = writeTo;
 		writeTo = tmp;
-		outFilename = (outFilename.compare("tmp1") == 0) ? "tmp2" : "tmp1"; 
+		lastResult = (lastResult.compare("tmp1") == 0) ? "tmp2" : "tmp1"; 
 
-		// Update stats
+		// Update stats to reflect merged runs
 		maxRecPerRun = maxRecPerRun * k;
 		maxRunSize = maxRunSize * k;
 		numOfRuns = ceil(double(numOfRuns) / k);
@@ -125,7 +122,7 @@ int main(int argc, const char* argv[]) {
 	fclose(writeTo);
 
 	// Rename the final output file into given out_file name
-	rename (outFilename.c_str(), argv[3]);
+	rename (lastResult.c_str(), argv[3]);
 
 	// Clean up remaining tmp files
 	remove ("tmp1");

@@ -21,7 +21,7 @@ RunIterator::RunIterator(FILE *fp, long start_pos, long run_length, long buf_siz
 	runLength = run_length;
 	maxBuffSizeInBytes = buf_size / recordSize; // Number of records per buffer
 	
-	// Non-Constants	
+	// Non-Constants used for tracking buffer and file	
 	totalRunLeft = run_length;
 	filePos = start_pos;	
 	hasNext = true;
@@ -163,6 +163,7 @@ void merge_runs(RunIterator* iterators[], int num_runs, FILE *out_fp, long start
 		int expectedDataSize = get_expected_data_size(next->schema) - 1;
 		memcpy (buf+bufPtr, next->data.c_str(), expectedDataSize);
 		bufPtr += expectedDataSize;		
+		delete next;
 
 		if ((buf_size - bufPtr) < expectedDataSize) {
 			// buffer is full. Write to file
