@@ -69,7 +69,8 @@ class RunIterator {
 	Schema *sch;	
 
 	// Constants calculated at intialization
-	long maxBuffSize;
+	long maxBuffSizeInBytes;
+	long initBuffSize;
 	long recordSize;
 	long runLength;
 	

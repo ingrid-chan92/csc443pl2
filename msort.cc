@@ -10,6 +10,8 @@
 void print_all_records(FILE *in_fp, int recordLen, Schema schema);
 void convert_string_into_sort_attr(Schema *schema, string sortingAttr);
 int addAttrToSchema(Json::Value schema_val, Schema *schema, int i);
+int getNumberOfInitRuns(FILE *in_fp, int maxRunSize);
+
 
 int main(int argc, const char* argv[]) {
 
@@ -29,7 +31,7 @@ int main(int argc, const char* argv[]) {
 		perror ("Error opening file");
 	}		
 	int mem_capacity = atoi(argv[4]);
-	int k = atoi(argv[5]);
+	int initK = atoi(argv[5]);
 	string sortingAttr(argv[6]);
 
   	// Parse the schema JSON file
@@ -49,41 +51,37 @@ int main(int argc, const char* argv[]) {
 	schema.nattrs = 0;
 
   	for (u_int32_t i = 0; i < schema_val.size(); ++i) {	
-	    	schema_value_len += addAttrToSchema(schema_val, &schema, i);
+	    schema_value_len += addAttrToSchema(schema_val, &schema, i);
 		comma_len++;
-		//cout << "{schema_name : " << schema.attrs[i].name << ", schema_len : " << schema.attrs[i].length  << ", schema_type : " << schema.attrs[i].type << "}" << endl;
   	}
 	convert_string_into_sort_attr(&schema, sortingAttr);
 
-	// Initialize reusable stats	
+	// Initialize stats	
 	int recordLen = schema_value_len+comma_len+1;
-	int runLength = mem_capacity / recordLen;	// Records per run
-	int runSize = runLength * (recordLen - 1);	// Size of run			
-	int itMemCap = mem_capacity / (k+1);		// Max capacity per iterator + buffer
-
-	// Get number of runs by size of file
-	fseek(in_fp, 0, SEEK_END);
-	int filesize = ftell(in_fp);
-	int numOfRuns = (filesize % runSize == 0) ? filesize / runSize : (filesize / runSize) + 1;	// Number of runs
-	fseek(in_fp, 0, SEEK_SET);
+	int maxRecPerRun = mem_capacity / recordLen;			// Records per run
+	int maxRunSize = maxRecPerRun * (recordLen - 1);		// Size of run in bytes
+	int numOfRuns = getNumberOfInitRuns(in_fp, maxRunSize);
+	int k = min (initK, numOfRuns);							// Max number of merges per pass
+	int memCap = mem_capacity / (k+1);						// Max capacity per iterator + buffer
 
 	// If memory alloted to each iterator is too small to fit a record. Sort not possible
-	if (itMemCap < recordLen) {
+	if (memCap < recordLen) {
 		cout << "Not enough memory allocated to do msort. Consider increasing mem_capcity or decreasing k\n" << endl;
 		return 1;
 	}
 	
 	/* At this point, all parameters for sorting are set */
+
 	// Initialize output files (two to alternate between write-read when merging)
 	FILE *readFrom = fopen ("tmp1", "w+");
 	FILE *writeTo = fopen ("tmp2" , "w+");
 	string outFilename = "tmp1";		// File containing the result of the last merge
 
 	// PASS 0: Initial sort into numOfRuns-runs
-	mk_runs(in_fp, readFrom, runLength, &schema);
+	mk_runs(in_fp, readFrom, maxRecPerRun, &schema);
 
 	// PASS 1..N: Merge sort runs	
-	char *buf = (char *) malloc(itMemCap);
+	char *buf = (char *) malloc(memCap);
 	while (numOfRuns > 1) {		
 		// Position on file to read from
 		int offset = 0;
@@ -93,10 +91,10 @@ int main(int argc, const char* argv[]) {
 			// Create array of k-iterators	
 			RunIterator *its[k];
 			for (int i = 0; i < k; i++) {
-				its[i] = new RunIterator(readFrom, offset + (i * runSize), runLength, itMemCap, &schema);
+				its[i] = new RunIterator(readFrom, offset + (i * maxRunSize), maxRecPerRun, memCap, &schema);
 			}	
 
-			merge_runs(its, k, writeTo, offset, buf, itMemCap);
+			merge_runs(its, k, writeTo, offset, buf, memCap);
 	
 			// Free all iterators
 			for (int i = 0; i < k; i++) {
@@ -104,7 +102,7 @@ int main(int argc, const char* argv[]) {
 			}	
 
 			// Move onto next k-runs
-			offset += k * runSize;
+			offset += k * maxRunSize;
 		}		
 
 		// Alternate read-write files (Sort alternates between two files)
@@ -114,9 +112,10 @@ int main(int argc, const char* argv[]) {
 		outFilename = (outFilename.compare("tmp1") == 0) ? "tmp2" : "tmp1"; 
 
 		// Update stats
-		runLength = runLength * k;
-		runSize = runSize * k;
-		numOfRuns = ceil(numOfRuns / k);
+		maxRecPerRun = maxRecPerRun * k;
+		maxRunSize = maxRunSize * k;
+		numOfRuns = ceil(double(numOfRuns) / k);
+		k = min (k, numOfRuns);
 	}
 
 	// Clean up
@@ -133,6 +132,13 @@ int main(int argc, const char* argv[]) {
 	remove ("tmp2");	
 
 	return 0;
+}
+
+int getNumberOfInitRuns(FILE *in_fp, int maxRunSize) {
+	fseek(in_fp, 0, SEEK_END);
+	int numOfRuns = ceil(double(ftell(in_fp)) / maxRunSize);
+	fseek(in_fp, 0, SEEK_SET);
+	return numOfRuns;
 }
 
 void convert_string_into_sort_attr(Schema *schema, string sortingAttr) {

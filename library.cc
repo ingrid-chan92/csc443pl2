@@ -12,12 +12,14 @@ RunIterator::RunIterator(FILE *fp, long start_pos, long run_length, long buf_siz
 	// Allocate structures
 	inFile = fp;
 	sch = schema;
-	buff = (char *) malloc(buf_size);		
+	buff = (char *) malloc(buf_size);
+	memset(buff, 0, buf_size);		
 
 	// constants
+	initBuffSize = buf_size;
 	recordSize = get_expected_data_size(schema) - 1;	// Subtract last comma
 	runLength = run_length;
-	maxBuffSize = buf_size / recordSize; // Number of records per buffer
+	maxBuffSizeInBytes = buf_size / recordSize; // Number of records per buffer
 	
 	// Non-Constants	
 	totalRunLeft = run_length;
@@ -82,11 +84,14 @@ bool RunIterator::has_next() {
 }
 
 void RunIterator::readRunIntoBuffer() {
-	long expectedRecordAmount = min(maxBuffSize, totalRunLeft);
+	long expectedRecordAmount = min(maxBuffSizeInBytes, totalRunLeft);
 
+	// Empty buffer and read data in
+	memset(buff, 0, initBuffSize);
 	fseek(inFile, filePos, SEEK_SET);
-	long numRead = fread(buff, recordSize, expectedRecordAmount, inFile);
+	long numRead = fread(buff, recordSize, expectedRecordAmount, inFile);	
 
+	// Set stats
 	buffSize = numRead * recordSize;
 	filePos += buffSize;
 	totalRunLeft -= numRead;
@@ -146,9 +151,8 @@ void merge_runs(RunIterator* iterators[], int num_runs, FILE *out_fp, long start
 		minRecs[i] = NULL;
 		if (iterators[i]->has_next()) {
 			Record *next = iterators[i]->next();
-
-			// Only record non-blank data			
 			if (!(next->data).empty()) {
+				// Only record non-blank data	
 				minRecs[i] = next;
 			}			
 		} 
