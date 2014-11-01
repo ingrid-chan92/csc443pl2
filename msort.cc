@@ -95,7 +95,13 @@ int main(int argc, const char* argv[]) {
 			for (int i = 0; i < k; i++) {
 				its[i] = new RunIterator(readFrom, offset + (i * runSize), runLength, itMemCap, &schema);
 			}	
+
 			merge_runs(its, k, writeTo, offset, buf, itMemCap);
+	
+			// Free all iterators
+			for (int i = 0; i < k; i++) {
+				delete its[i];
+			}	
 
 			// Move onto next k-runs
 			offset += k * runSize;
