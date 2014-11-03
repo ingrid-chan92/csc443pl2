@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <sys/time.h> 
+#include <ctime>
 
 #include "leveldb/db.h"
 #include "leveldb/comparator.h"
@@ -153,14 +155,20 @@ int main(int argc, const char* argv[]) {
 
     // Read and sort records in in_fp
 	u_int32_t recordLength = get_expected_data_size(&schema);	
-  	vector<Record> records;
+    int record_count = 0;  	
+    vector<Record> records;
     Record record;
 	char buffer[recordLength];
 	while (fgets(buffer, recordLength, in_fp) != NULL) {
 		record.schema = &schema;
 		record.data.assign(buffer);
    		records.push_back(record);
+        record_count++;
 	}
+
+    timeval tim;
+	gettimeofday(&tim, NULL);
+	double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
 
     //inserting records into b+ tree
     string key_str, value_str;
@@ -188,9 +196,16 @@ int main(int argc, const char* argv[]) {
     //writing result to file
     dump_tree(db, out_fp);
 
+	gettimeofday(&tim, NULL);
+	double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+
+	printf("SIZE: %d \n", record_count);
+	printf("TIME: %f \n", (t2-t1)*1000);
+
     delete db;
     fclose(in_fp);
     fclose(out_fp);
+
 
     return 0;
 }
