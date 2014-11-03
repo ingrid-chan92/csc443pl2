@@ -154,6 +154,9 @@ void merge_runs(RunIterator* iterators[], int num_runs, FILE *out_fp, long start
 			if (!(next->data).empty()) {
 				// Only record non-blank data	
 				minRecs[i] = next;
+			} else {
+				// If blank, empty iterator. Free next
+				delete next;
 			}			
 		} 
 	}

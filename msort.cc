@@ -4,6 +4,8 @@
 #include <fstream>
 #include <vector>
 #include <math.h>
+#include <sys/time.h> 
+#include <ctime>
 #include "library.h"
 #include "json/json.h"
 
@@ -15,6 +17,7 @@ int getNumberOfInitRuns(FILE *in_fp, int maxRunSize);
 
 int main(int argc, const char* argv[]) {
 	
+	timeval tim;
 	Schema schema;  
 
 	if (argc != 7) {
@@ -74,6 +77,12 @@ int main(int argc, const char* argv[]) {
 	FILE *writeTo = fopen ("tmp2" , "w+");
 	string lastResult = "tmp1";		// File containing the result of the last merge
 
+	/* Merge-sorting starts here */
+
+	// Start the timer	
+    	gettimeofday(&tim, NULL);
+	double before=tim.tv_sec+(tim.tv_usec/1000000.0);
+	
 	// PASS 0: Initial sort into numOfRuns-runs
 	mk_runs(in_fp, readFrom, maxRecPerRun, &schema);
 
@@ -128,6 +137,12 @@ int main(int argc, const char* argv[]) {
 	remove ("tmp1");
 	remove ("tmp2");	
 
+	/* Sorting ends here */
+	// Report time taken to sort
+	gettimeofday(&tim, NULL);
+	double after=tim.tv_sec+(tim.tv_usec/1000000.0);
+	printf("Time to process merge sort on file '%s' : \t%f s\n", argv[2], after - before);
+
 	return 0;
 }
 
@@ -163,26 +178,3 @@ int addAttrToSchema(Json::Value schema_val, Schema *schema, int i) {
 	return attribute.length;
 }
 
-/**
- * Debugging function for printing records. Do not run on large files
- */
-void print_all_records(FILE *fp, int recordLen, Schema schema) {
-  std::vector<Record> records;
-	Record record;
-  record.schema = &schema;
-
-	// Set file pointer back to beginning
-	fseek(fp, SEEK_SET, 0);
-
-	// Read in all the records
-  char buffer[recordLen]; //one for new-line  
-  while (fgets(buffer, recordLen, fp) != NULL) {
-    record.data.assign(buffer);
-    records.push_back(record);
-  }
-
-  /*check value in record*/
-  for (u_int32_t i = 0; i < records.size(); i++) {
-    cout << "record_data : " << records[i].data;
-  }
-}
