@@ -30,16 +30,32 @@ if __name__ == "__main__":
 	cmd(['make'])
 
 	x, y = [], []
-	data_generator.generate_data(json.load(open('testSchema')), 'inBigCsv', 4000); #ALTER THIS TO DO 4GB FILE
+	base = open('baseCsv', 'r')
+	
+	# Build file by appending 500MB file 8 times
+	f = open('inBigCsv', 'w')
+	for i in range(0,8):
+		f.write(base.read())
+		base.seek(0)		
+	f.close()	
 
-	for k in range(2,10):		#ALTER THIS TO (10,18)		
-		output = cmd(['./msort', 'testSchema', 'inBigCsv', 'outCsv', str(1024), str(k), 'start_year,cgpa'])		
+	base.close()
+
+	print 'Produced final input file'
+	sleep(5)
+
+	for k in range(2,10):
+
+		print 'Running Sort with k=' + str(k)
+		output = cmd(['./msort', 'testSchema', 'inBigCsv', 'outCsv', str(400), str(k), 'start_year,cgpa'])		
 		time = output.split()
 		seconds = time[-2];
 		x.append(k);
 		y.append(float(seconds))
-		sleep(5)
 
-    #make sure that the threshold line draw *after* the intervals
+		sleep(10)
+
 	plt.plot(x, y, "-bd")
 	plt.savefig("msort_k_graph")
+
+	os.remove('inBigCsv')	

@@ -30,17 +30,33 @@ if __name__ == "__main__":
 	cmd(['make'])
 
 	x, y = [], []
-	data_generator.generate_data(json.load(open('testSchema')), 'inBigCsv', 4000); #ALTER THIS TO DO 4GB FILE
+	base = open('baseCsv', 'r')
+	
+	# Build file by appending 500MB file 8 times
+	f = open('inBigCsv', 'w')
+	for i in range(0,8):
+		f.write(base.read())
+		base.seek(0)		
+	f.close()	
 
-	for memsize in range(9,13):		#ALTER THIS TO (10,18)
-		mem_capacity = 2**memsize
-		output = cmd(['./msort', 'testSchema', 'inBigCsv', 'outCsv', str(mem_capacity), str(16), 'start_year,cgpa'])		
+	base.close()
+
+	print 'Produced final input file'
+	sleep(5)
+
+	for j in range(3,8):
+		mem_capacity = j*50
+		
+		print 'Running Sort with mem_capacity=' + str(mem_capacity)
+		output = cmd(['./msort', 'testSchema', 'inBigCsv', 'outCsv', str(mem_capacity), str(3), 'start_year,cgpa'])		
 		time = output.split()
 		seconds = time[-2];
-		x.append(memsize);
+		x.append(j);
 		y.append(float(seconds))
-		sleep(5)
 
-    #make sure that the threshold line draw *after* the intervals
+		sleep(10)
+
 	plt.plot(x, y, "-bd")
 	plt.savefig("msort_memcap_graph")
+
+	os.remove('inBigCsv')	

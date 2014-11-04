@@ -80,8 +80,8 @@ int main(int argc, const char* argv[]) {
 	/* Merge-sorting starts here */
 
 	// Start the timer	
-    	gettimeofday(&tim, NULL);
-	double before=tim.tv_sec+(tim.tv_usec/1000000.0);
+    gettimeofday(&tim, NULL);
+	double before=(tim.tv_sec * 1000)+(tim.tv_usec / 1000.0);
 	
 	// PASS 0: Initial sort into numOfRuns-runs
 	mk_runs(in_fp, readFrom, maxRecPerRun, &schema);
@@ -140,8 +140,8 @@ int main(int argc, const char* argv[]) {
 	/* Sorting ends here */
 	// Report time taken to sort
 	gettimeofday(&tim, NULL);
-	double after=tim.tv_sec+(tim.tv_usec/1000000.0);
-	printf("Time to process merge sort on file '%s' : \t%f s\n", argv[2], after - before);
+	double after=(tim.tv_sec * 1000)+(tim.tv_usec / 1000.0);
+	printf("Time to process merge sort on file '%s' : \t%f ms\n", argv[2], after - before);
 
 	return 0;
 }

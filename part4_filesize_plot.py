@@ -29,17 +29,34 @@ if __name__ == "__main__":
     # Build the program.
 	cmd(['make'])
 
+	# Get 500MB file
+	base = open('baseCsv', 'r')
+
 	x, y = [], []
-	for fsize in range(1,9):	#ALTER THIS TO DO 4GB FILE
-		filesize = fsize * 1000;	
-		data_generator.generate_data(json.load(open('testSchema')), 'inBigCsv', filesize)
-		output = cmd(['./msort', 'testSchema', 'inBigCsv', 'outCsv', str(1048), str(16), 'start_year,cgpa'])		
+	for fsize in range(2,8):
+		# create file by appending bigCsv to new file
+		filename = 'inCsv'+str(fsize)
+		f = open(filename, "w")
+		for i in range(0,fsize):
+			f.write(base.read())
+			base.seek(0)
+		f.close()
+		
+		print 'Produced input file'
+		sleep(5)
+
+		print 'Running Sort with filesize = ' + str(fsize * 500) + 'MB'
+		output = cmd(['./msort', 'testSchema', filename, 'outCsv', str(400), str(4), 'start_year,cgpa'])		
 		time = output.split()
 		seconds = time[-2];
-		x.append(filesize)
+		x.append(fsize * 500)
 		y.append(float(seconds))
 		sleep(5)
 
+		os.remove(filename)
+
 	plt.plot(x, y, "-bd")
 	plt.savefig("msort_filesize_graph")
+
+	base.close
 
