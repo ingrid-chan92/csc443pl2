@@ -229,18 +229,26 @@ bool compare_records(const Record &a, const Record &b) {
 	Schema *schema = a.schema;
 	vector<int> sortAttrs = schema->sort_attrs;
 
+	if (!(a.schema) || ((a.data).compare("") == 0)) {
+		return false;
+	} else if (!(b.schema) || ((b.data).compare("") == 0)) {
+		return true;
+	}
+
 	// Compare attributes of both records based on sortAttrs
 	for (u_int32_t i = 0; i < sortAttrs.size(); i++) {
 		string aAttr = get_attr_from_data(sortAttrs[i], a.data);
-		string bAttr = get_attr_from_data(sortAttrs[i], b.data);	
+		string bAttr = get_attr_from_data(sortAttrs[i], b.data);
+
 		if (aAttr.compare(bAttr) != 0) {
 			return compare_attribute(aAttr, bAttr, schema->attrs[sortAttrs[i]]);
 		}
+
 		// At this point, a and b are equal. Check next sort attribute
 	}
 
 	// The records are exactly the same. Default to true.
-	return true;
+	return false;
 }
 
 /**
