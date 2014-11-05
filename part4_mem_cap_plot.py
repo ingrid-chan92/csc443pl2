@@ -29,32 +29,36 @@ if __name__ == "__main__":
     # Build the program.
 	cmd(['make'])
 
-	x, y = [], []
+'''
+	# File building section: Ignore, just use 500 MB
+
 	base = open('baseCsv', 'r')
-	
+
 	# Build file by appending 500MB file 8 times
 	f = open('inBigCsv', 'w')
-	for i in range(0,8):
+	for i in range(0,4):
 		f.write(base.read())
 		base.seek(0)		
 	f.close()	
 
 	base.close()
-
 	print 'Produced final input file'
-	sleep(5)
+	sleep(1)
+'''
 
-	for j in range(3,8):
-		mem_capacity = j*50
+	x, y = [], []
+
+	for j in range(10,15):
+		mem_capacity = 2**j
 		
 		print 'Running Sort with mem_capacity=' + str(mem_capacity)
-		output = cmd(['./msort', 'testSchema', 'inBigCsv', 'outCsv', str(mem_capacity), str(3), 'start_year,cgpa'])		
+		output = cmd(['./msort', 'testSchema', 'baseCsv', 'outCsv', str(mem_capacity), str(10), 'start_year,cgpa'])		
 		time = output.split()
 		seconds = time[-2];
 		x.append(j);
 		y.append(float(seconds))
 
-		sleep(10)
+		sleep(1)
 
 	plt.plot(x, y, "-bd")
 	plt.savefig("msort_memcap_graph")

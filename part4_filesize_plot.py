@@ -33,25 +33,25 @@ if __name__ == "__main__":
 	base = open('baseCsv', 'r')
 
 	x, y = [], []
-	for fsize in range(2,8):
+	for fsize in range(1,6):
 		# create file by appending bigCsv to new file
 		filename = 'inCsv'+str(fsize)
 		f = open(filename, "w")
-		for i in range(0,fsize):
+		for i in range(0, fsize):
 			f.write(base.read())
 			base.seek(0)
 		f.close()
 		
 		print 'Produced input file'
-		sleep(5)
+		sleep(1)
 
 		print 'Running Sort with filesize = ' + str(fsize * 500) + 'MB'
-		output = cmd(['./msort', 'testSchema', filename, 'outCsv', str(400), str(4), 'start_year,cgpa'])		
+		output = cmd(['./msort', 'testSchema', filename, 'outCsv', str(2048), str(10), 'start_year,cgpa'])		
 		time = output.split()
 		seconds = time[-2];
 		x.append(fsize * 500)
 		y.append(float(seconds))
-		sleep(5)
+		sleep(1)
 
 		os.remove(filename)
 
