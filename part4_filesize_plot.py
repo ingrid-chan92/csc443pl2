@@ -33,7 +33,7 @@ if __name__ == "__main__":
 	base = open('baseCsv', 'r')
 
 	x, y = [], []
-	for fsize in range(1,6):
+	for fsize in range(1,10):
 		# create file by appending bigCsv to new file
 		filename = 'inCsv'+str(fsize)
 		f = open(filename, "w")
@@ -45,17 +45,20 @@ if __name__ == "__main__":
 		print 'Produced input file'
 		sleep(1)
 
-		print 'Running Sort with filesize = ' + str(fsize * 500) + 'MB'
-		output = cmd(['./msort', 'testSchema', filename, 'outCsv', str(2048), str(10), 'start_year,cgpa'])		
+		print 'Running Sort with filesize = ' + str(fsize * 3) + 'MB'
+		output = cmd(['./msort', 'testSchema', filename, 'outCsv', str(16384), str(4), 'start_year,cgpa'])		
 		time = output.split()
 		seconds = time[-2];
-		x.append(fsize * 500)
+		print "Time taken : " + str(seconds)
+		x.append(fsize * 100000)
 		y.append(float(seconds))
 		sleep(1)
 
 		os.remove(filename)
 
 	plt.plot(x, y, "-bd")
+	plt.xlabel('Number of  tuples')
+	plt.ylabel('Delay(ms)')
 	plt.savefig("msort_filesize_graph")
 
 	base.close

@@ -18,48 +18,65 @@ def cmd(command):
 if __name__ == "__main__":
 
     # Build the program.
-    cmd(['make'])
+	cmd(['make'])
 
     # Run the program and create the plot.
-    graph_value_msort_bad = [];
-    graph_value_msort_good = [];
-    graph_value_bsort = [];
+	graph_value_msort_bad = [];
+	graph_value_msort_good = [];
+	graph_value_bsort = [];
+	x=[]
 
-    for i in range(1, 4):
-        filesize = i * 1000;	
-	data_generator.generate_data(json.load(open('schema')), 'data', filesize)
-        output = cmd(['./msort', 'schema', 'data', 'res' , str(2048), str(2), 'cgpa'])
-        time = output.split()
-        seconds = time[-2];
-        graph_value_msort_bad.append(float(seconds))
-        sleep(3)
+	# Get 500MB file
+	base = open('baseCsv', 'r')
 
-        output = cmd(['./msort', 'schema', 'data', 'res' , str(2048), str(10), 'cgpa'])
-        time = output.split()
-        seconds = time[-2];
-        graph_value_msort_good.append(float(seconds))
-        sleep(3)
+	for i in range(1, 10):
+		
+		filename = 'data'+str(i)
+		f = open(filename, "w")
+		for j in range(0, i):
+			f.write(base.read())
+			base.seek(0)
+		f.close()
 
-        output = cmd(['./bsort', 'schema', 'data', 'res', 'cgpa'])
-        time = output.splitlines()
-        millisec = time[-1].split()
-        graph_value_bsort.append((float(millisec[-1])/1000))
-        sleep(3)
+		x.append(i * 100000)
+
+		output = cmd(['./msort', 'testSchema', filename, 'outCsv' , str(2048), str(8), 'cgpa'])
+		time = output.split()
+		millisec = time[-2];
+		print "Time taken : " + str(millisec)
+		graph_value_msort_bad.append(float(millisec))
+		sleep(1)
+
+		output = cmd(['./msort', 'testSchema', filename, 'outCsv' , str(16384), str(4), 'cgpa'])
+		time = output.split()
+		millisec = time[-2];
+		print "Time taken : " + str(millisec)
+		graph_value_msort_good.append(float(millisec))
+		sleep(1)
+
+		output = cmd(['./bsort', 'testSchema', filename, 'outCsv', 'cgpa'])
+		time = output.splitlines()
+		millisec = (time[-1].split())[-1]
+		print "Time taken : " + str(millisec)
+		graph_value_bsort.append((float(millisec)))
+		sleep(1)
+
+		os.remove(filename)
 
     #print graph_value
-    x =range(1000,4000,1000)
-    print len(x)
-    print len(graph_value_msort_bad)
+	print len(x)
+	print len(graph_value_msort_bad)
 
-    plt.plot(x, graph_value_msort_good, 'bd-', label="Good msort")
-    plt.plot(x, graph_value_msort_bad, 'rd-', label="Bad msort")
-    plt.plot(x, graph_value_bsort, 'gd-', label="bsort")
-    plt.legend(prop={"size": 10})
-    plt.xlabel('Number of  tuples')
-    plt.ylabel('Delay(s)')
-    plt.title('Experiment 5 Comparison')
-    plt.savefig("Experiment 5 Comparison")
-    plt.show()
-    plt.close()
+	plt.plot(x, graph_value_msort_good, 'bd-', label="Good msort")
+	plt.plot(x, graph_value_msort_bad, 'rd-', label="Bad msort")
+	plt.plot(x, graph_value_bsort, 'gd-', label="bsort")
+	plt.legend(prop={"size": 10})
+	plt.xlabel('Number of  tuples')
+	plt.ylabel('Delay(ms)')
+	plt.title('Experiment_5_Comparison')
+	plt.savefig("Experiment_5_Comparison")
+
+	base.close
+
 
 

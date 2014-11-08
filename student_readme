@@ -1,3 +1,7 @@
 Members: 
 c0chanin
 c1hongxu
+
+Part4/5 tests:
+- _big graphs were run with 500 MB of data
+- _small graphs were run with roughly 14.5 MB of data 

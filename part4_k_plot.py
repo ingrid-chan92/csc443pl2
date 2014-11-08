@@ -29,37 +29,22 @@ if __name__ == "__main__":
     # Build the program.
 	cmd(['make'])
 
-'''
-	# File building section: Ignore, just use 500 MB
-
-	base = open('baseCsv', 'r')
-
-	# Build file by appending 500MB file 8 times
-	 f = open('inBigCsv', 'w')
-	for i in range(0,4):
-		f.write(base.read())
-		base.seek(0)		
-	f.close()	
-
-	base.close()
-
-	print 'Produced final input file'
-	sleep(1)
-'''
 	x, y = [], []	
 
-	for k in range(4, 14):
+	for k in range(2, 12):
 
 		print 'Running Sort with k=' + str(k)
-		output = cmd(['./msort', 'testSchema', 'baseCsv', 'outCsv', str(2048), str(k), 'start_year,cgpa'])		
+		output = cmd(['./msort', 'testSchema', 'baseCsv', 'outCsv', str(16384), str(k), 'start_year,cgpa'])		
 		time = output.split()
 		seconds = time[-2];
+		print "Time taken : " + str(seconds)
 		x.append(k);
 		y.append(float(seconds))
 
 		sleep(1)
 
 	plt.plot(x, y, "-bd")
+	plt.xlabel('k')
+	plt.ylabel('Delay(ms)')
 	plt.savefig("msort_k_graph")
 
-	os.remove('inBigCsv')	
