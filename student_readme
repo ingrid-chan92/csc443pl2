@@ -5,3 +5,7 @@ c1hongxu
 Part4/5 tests:
 - _big graphs were run with 500 MB of data
 - _small graphs were run with roughly 14.5 MB of data 
+
+Relevant Code:
+- Main code: library.cc, msort.cc, bsort.cc, data_generator.py
+- Testing code: Python files
